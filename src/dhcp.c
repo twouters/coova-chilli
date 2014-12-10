@@ -5476,6 +5476,24 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
 	    ntohs(fullpack_udph->src));
     
     OTHER_SENDING(conn,fullpack_iph);
+
+#ifdef ENABLE_LOCATION
+    struct app_conn_t *appconn = 0;
+    struct dhcp_tag_t * opt82 = 0;
+    struct dhcp_packet_t * dhcpp = pkt_dhcppkt(fullpack);
+    if (!dhcp_gettag(dhcpp, ntohs(pkt_udphdr(fullpack)->len)-PKT_UDP_HLEN,
+                    &opt82, DHCP_OPTION_82)) {
+      appconn = (struct app_conn_t *) conn->peer;
+      if (!appconn)
+        chilli_getconn(&appconn, fullpack_iph->daddr, 0, 0);
+      if (appconn) {
+        chilli_learn_location(opt82->v, opt82->l, appconn, 1);
+      } else {
+        log_dbg("no appconn for option 82");
+      }
+    }
+#endif
+
     return dhcp_send(this, dhcp_conn_idx(conn), conn->hismac, fullpack, 
 		     length + sizeofudp(fullpack));
   }
